@@ -26,6 +26,12 @@ namespace leveldb {
 
 class LEVELDB_EXPORT Slice {
  public:
+  /**
+   * Slice兼容C/C++中三种字符串表示方式
+   * 1. 首地址 + 长度：能表示任意二进制字节数据
+   * 2. C++标准库中的string字符串类
+   * 3. C式字符串：以'\0'结尾, 非二进制安全
+   */
   // Create an empty slice.
   Slice() : data_(""), size_(0) {}
 
@@ -33,12 +39,14 @@ class LEVELDB_EXPORT Slice {
   Slice(const char* d, size_t n) : data_(d), size_(n) {}
 
   // Create a slice that refers to the contents of "s"
+  // TODO: 使用explict避免隐式转换
   Slice(const std::string& s) : data_(s.data()), size_(s.size()) {}
 
   // Create a slice that refers to s[0,strlen(s)-1]
+  // TODO: 使用explict避免隐式转换
   Slice(const char* s) : data_(s), size_(strlen(s)) {}
 
-  // Intentionally copyable.
+  // Intentionally copyable.(默认拷贝构造函数和赋值函数)
   Slice(const Slice&) = default;
   Slice& operator=(const Slice&) = default;
 
@@ -52,7 +60,7 @@ class LEVELDB_EXPORT Slice {
   bool empty() const { return size_ == 0; }
 
   // Return the ith byte in the referenced data.
-  // REQUIRES: n < size()
+  // REQUIRES: n < size() 用户方自己保证
   char operator[](size_t n) const {
     assert(n < size());
     return data_[n];
@@ -66,7 +74,7 @@ class LEVELDB_EXPORT Slice {
 
   // Drop the first "n" bytes from this slice.
   void remove_prefix(size_t n) {
-    assert(n <= size());
+    assert(n <= size());    // 使用方保证
     data_ += n;
     size_ -= n;
   }
@@ -86,10 +94,16 @@ class LEVELDB_EXPORT Slice {
   }
 
  private:
-  const char* data_;
-  size_t size_;
+  const char* data_;    // 数据起始地址（只读）
+  size_t size_;         // 数据长度
 };
 
+/**
+ * 重载==和!=运算符函数, 非类的成员函数
+ * 判断两个Slice是否相等：二进制字节依次进行比较
+ * 判断两个Slice不相等：判断相等取反操作
+ * TODO: operator==和operator!=为什么不实现为类的成员函数
+ */
 inline bool operator==(const Slice& x, const Slice& y) {
   return ((x.size() == y.size()) &&
           (memcmp(x.data(), y.data(), x.size()) == 0));
@@ -97,10 +111,16 @@ inline bool operator==(const Slice& x, const Slice& y) {
 
 inline bool operator!=(const Slice& x, const Slice& y) { return !(x == y); }
 
+/**
+ * 对两个Slice按字典序比较
+ * <  0 if "*this" <  "b",
+ * == 0 if "*this" == "b",
+ * >  0 if "*this" >  "b"
+ */
 inline int Slice::compare(const Slice& b) const {
-  const size_t min_len = (size_ < b.size_) ? size_ : b.size_;
+  const size_t min_len = (size_ < b.size_) ? size_ : b.size_;   // 获取最小长度
   int r = memcmp(data_, b.data_, min_len);
-  if (r == 0) {
+  if (r == 0) { // 前min_len个字节相等的前提下, 再比较长度
     if (size_ < b.size_)
       r = -1;
     else if (size_ > b.size_)
