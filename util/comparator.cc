@@ -17,7 +17,10 @@ namespace leveldb {
 
 Comparator::~Comparator() = default;
 
-namespace {
+namespace { //　多加１层namespace是为了避免和用户的实现冲突？
+/**
+ * 虚基类Comparator的实现类, 具体实现, 不必暴露
+ */
 class BytewiseComparatorImpl : public Comparator {
  public:
   BytewiseComparatorImpl() = default;
@@ -25,7 +28,7 @@ class BytewiseComparatorImpl : public Comparator {
   const char* Name() const override { return "leveldb.BytewiseComparator"; }
 
   int Compare(const Slice& a, const Slice& b) const override {
-    return a.compare(b);
+    return a.compare(b);    // 使用Slice的比较函数
   }
 
   void FindShortestSeparator(std::string* start,
@@ -33,6 +36,7 @@ class BytewiseComparatorImpl : public Comparator {
     // Find length of common prefix
     size_t min_length = std::min(start->size(), limit.size());
     size_t diff_index = 0;
+    // 找到*start和limit的第一个不同字符
     while ((diff_index < min_length) &&
            ((*start)[diff_index] == limit[diff_index])) {
       diff_index++;
@@ -40,8 +44,10 @@ class BytewiseComparatorImpl : public Comparator {
 
     if (diff_index >= min_length) {
       // Do not shorten if one string is a prefix of the other
+      // 如果start是limit或者limit是start的前缀则不做任何操作
     } else {
       uint8_t diff_byte = static_cast<uint8_t>((*start)[diff_index]);
+      
       if (diff_byte < static_cast<uint8_t>(0xff) &&
           diff_byte + 1 < static_cast<uint8_t>(limit[diff_index])) {
         (*start)[diff_index]++;
