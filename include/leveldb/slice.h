@@ -33,6 +33,7 @@ class LEVELDB_EXPORT Slice {
    * 3. C式字符串：以'\0'结尾, 非二进制安全
    */
   // Create an empty slice.
+  // 创建空的slice, 此时data_的值并非为nullptr
   Slice() : data_(""), size_(0) {}
 
   // Create a slice that refers to d[0,n-1].
